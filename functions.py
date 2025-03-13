@@ -557,6 +557,14 @@ Informações sobre processos judiciais:
 
 Histórico de Offenses:
 {offense_history_json}
+
+Transações de Apostas via PIX:
+{bets_pix_transfers_json}
+
+- Calcule a soma total dos valores para as transações com casas de apostas "cash-in" e "cash-out".
+- Determine a porcentagem que cada soma representa em relação ao total de transações de apostas.Verifique se há concentração excessiva de transações em uma única ou várias casa de apostas (campo "gateway_name").
+- Identifique divergências relevantes entre os totais de cash-in e cash-out.
+
 """
 
     # Additional instructions based on alert type
