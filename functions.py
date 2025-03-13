@@ -472,9 +472,10 @@ Concentração de Issuing:
 
 Análise Adicional para Concentração de Issuing:
 - Verifique se há repetição de merchant_name ou padrões de valores anômalos em total_amount.
-- Utilize os campos total_amount e percentage_of_total para identificar picos ou concentrações excessivas.
+- Utilize os campos total_amount, percentage_of_total, message__card_acceptor_mcc e message__card_acceptor_country_code para identificar picos ou concentrações excessivas.
 - Compare os valores de total_amount com o percentage_of_total para detectar discrepâncias ou padrões incomuns.
 - Caso existam transações repetidas ou com valores atípicos, destaque essas ocorrências e discuta possíveis riscos associados.
+- Avalie se os códigos MCC (message__card_acceptor_mcc) correspondem a setores de alto risco e se o país do adquirente (message__card_acceptor_country_code) aponta para origens que requeiram atenção especial.
 
 Transações Negadas:
 {denied_transactions_json}
