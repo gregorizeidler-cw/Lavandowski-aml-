@@ -8,14 +8,11 @@ import logging
 import os
 from dotenv import load_dotenv
 
-
 # Load environment variables
 load_dotenv()
 
-
 # Configure logging
 logging.basicConfig(level=logging.ERROR)
-
 
 # Create a custom JSON encoder to handle Decimal objects
 class CustomJSONEncoder(json.JSONEncoder):
@@ -27,18 +24,15 @@ class CustomJSONEncoder(json.JSONEncoder):
         else:
             return super().default(obj)
 
-
 # Set up Pandas options
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', 40)
 pd.set_option('display.min_rows', 40)
 
-
 # Connect to Google Cloud project
 project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
 location = os.getenv("LOCATION")
 client = bigquery.Client(project=project_id, location=location)
-
 
 def format_date_portuguese(date_str: str) -> str:
     """Formats a date string to Portuguese date format."""
@@ -51,7 +45,6 @@ def format_date_portuguese(date_str: str) -> str:
     date = datetime.datetime.strptime(date_str, '%d-%m-%Y')
     return f"{date.day} de {month_names[date.month]} de {date.year}"
 
-
 def format_cpf(cpf: str) -> str:
     """Formats a CPF string."""
     if cpf is None:
@@ -63,6 +56,14 @@ def format_cpf(cpf: str) -> str:
     else:
         return cpf
 
+def execute_query(query):
+    """Executes a BigQuery SQL query and returns a DataFrame."""
+    try:
+        df = client.query(query).result().to_dataframe()
+        return df
+    except Exception as e:
+        logging.error(f"Error executing query: {e}")
+        return pd.DataFrame()
 
 def fetch_lawsuit_data(user_id: int) -> pd.DataFrame:
     """Fetches lawsuit data for the given user_id (New Lighter Logic)."""
@@ -72,7 +73,6 @@ def fetch_lawsuit_data(user_id: int) -> pd.DataFrame:
     df = execute_query(query)
     return df
 
-
 def fetch_business_data(user_id: int) -> pd.DataFrame:
     """Fetches business data for the given user_id."""
     query = f"""
@@ -80,7 +80,6 @@ def fetch_business_data(user_id: int) -> pd.DataFrame:
     """
     df = execute_query(query)
     return df
-
 
 def fetch_sanctions_history(user_id: int) -> pd.DataFrame:
     """Fetches KYC sanctions history for the given user_id."""
@@ -90,24 +89,21 @@ def fetch_sanctions_history(user_id: int) -> pd.DataFrame:
     df = execute_query(query)
     return df
 
-
 def fetch_denied_transactions(user_id: int) -> pd.DataFrame:
     """Fetches denied transactions for the given user_id (merchant_id)."""
     query = f"""
-        SELECT * FROM `infinitepay-production.metrics_amlft.lavandowski_risk_transactions_data` WHERE merchant_id = {user_id} ORDER BY card_number
+    SELECT * FROM `infinitepay-production.metrics_amlft.lavandowski_risk_transactions_data` WHERE merchant_id = {user_id} ORDER BY card_number
     """
     df = execute_query(query)
     return df
-
 
 def fetch_denied_pix_transactions(user_id: int) -> pd.DataFrame:
     """Fetches denied PIX transactions for the given user_id and the risk check that failed."""
     query = f"""
-         SELECT * FROM `infinitepay-production.metrics_amlft.lavandowski_risk_pix_transfers_data` WHERE debitor_user_id = '{user_id}' ORDER BY str_pix_transfer_id DESC
+    SELECT * FROM `infinitepay-production.metrics_amlft.lavandowski_risk_pix_transfers_data` WHERE debitor_user_id = '{user_id}' ORDER BY str_pix_transfer_id DESC
     """
     df = execute_query(query)
     return df
-
 
 def convert_decimals(data):
     """Recursively converts decimal.Decimal objects to float in data."""
@@ -127,7 +123,6 @@ def convert_decimals(data):
     else:
         return data
 
-
 def fetch_prison_transactions(user_id: int) -> pd.DataFrame:
     """Fetches prison transactions for the given user_id."""
     query = f"""
@@ -136,52 +131,38 @@ def fetch_prison_transactions(user_id: int) -> pd.DataFrame:
     df = execute_query(query)
     return df
 
-
-# --- ADICIONADO: Function to fetch bets PIX transfers data ---
-def fetch_bets_pix_transfers(user_id: int) -> pd.DataFrame:
-    """Fetches bets PIX transfers data for the given user_id."""
-    query = f"""
-    SELECT * FROM `infinitepay-production.metrics_amlft.bets_pix_transfers` WHERE user_id = {user_id}
-    """
-    df = execute_query(query)
-    return df
-# --- End addition ---
-
-
-def execute_query(query):
-    """Executes a BigQuery SQL query and returns a DataFrame."""
-    try:
-        df = client.query(query).result().to_dataframe()
-        return df
-    except Exception as e:
-        logging.error(f"Error executing query: {e}")
-        return pd.DataFrame()
-
-
 def merchant_report(user_id: int, alert_type: str, pep_data=None) -> dict:
     """Generates a report for a merchant user."""
     # Define queries
     query_merchants = f"""
     SELECT * FROM metrics_amlft.merchant_report WHERE user_id = {user_id} LIMIT 1
     """
+
+    # UPDATED ISSUING QUERY
     query_issuing_concentration = f"""
     SELECT * FROM `infinitepay-production.metrics_amlft.lavandowski_issuing_payments_data` WHERE user_id = {user_id}
     """
+
     query_pix_concentration = f"""
     SELECT * FROM metrics_amlft.pix_concentration WHERE user_id = {user_id}
     """
+
     query_offense_history = f"""
     SELECT * FROM `infinitepay-production.metrics_amlft.lavandowski_offense_analysis_data` WHERE user_id =  {user_id} ORDER BY id DESC
     """
+
     query_transaction_concentration = f"""
     SELECT * EXCEPT(merchant_id) FROM metrics_amlft.cardholder_concentration WHERE merchant_id = {user_id} ORDER BY total_approved_by_ch DESC
     """
+
     products_online_store = f"""
     SELECT * FROM `infinitepay-production.metrics_amlft.lavandowski_online_store_data` WHERE user_id = {user_id}
     """
+
     contacts_query = f"""
     SELECT * FROM `infinitepay-production.metrics_amlft.lavandowski_phonecast_data` WHERE user_id = {user_id}
     """
+
     devices_query = f"""
     SELECT * EXCEPT(user_id) FROM metrics_amlft.user_device WHERE user_id = {user_id}
     """
@@ -258,23 +239,23 @@ def merchant_report(user_id: int, alert_type: str, pep_data=None) -> dict:
     # Fetch prison transactions
     prison_transactions_df = fetch_prison_transactions(user_id)
     prison_transactions_list = prison_transactions_df.to_dict(orient='records') if not prison_transactions_df.empty else []
+
+    # Convert decimals
     prison_transactions_list = convert_decimals(prison_transactions_list)
 
     # Fetch KYC sanctions history data
     sanctions_history_df = fetch_sanctions_history(user_id)
     sanctions_history_list = sanctions_history_df.to_dict(orient='records') if not sanctions_history_df.empty else []
+
+    # Convert decimals if necessary (assuming sanctions history data might contain decimals)
     sanctions_history_list = convert_decimals(sanctions_history_list)
 
     # Fetch denied PIX transactions
     denied_pix_transactions_df = fetch_denied_pix_transactions(user_id)
     denied_pix_transactions_list = denied_pix_transactions_df.to_dict(orient='records') if not denied_pix_transactions_df.empty else []
-    denied_pix_transactions_list = convert_decimals(denied_pix_transactions_list)
 
-    # --- ADICIONADO: Fetch bets PIX transfers data ---
-    bets_pix_transfers_df = fetch_bets_pix_transfers(user_id)
-    bets_pix_transfers_list = bets_pix_transfers_df.to_dict(orient='records') if not bets_pix_transfers_df.empty else []
-    bets_pix_transfers_list = convert_decimals(bets_pix_transfers_list)
-    # --- End addition ---
+    # Convert decimals if necessary
+    denied_pix_transactions_list = convert_decimals(denied_pix_transactions_list)
 
     # Create report dictionary
     report = {
@@ -296,12 +277,10 @@ def merchant_report(user_id: int, alert_type: str, pep_data=None) -> dict:
         "business_data": business_data_list,
         "prison_transactions": prison_transactions_list,
         "sanctions_history": sanctions_history_list,
-        "denied_pix_transactions": denied_pix_transactions_list,
-        "bets_pix_transfers": bets_pix_transfers_list
+        "denied_pix_transactions": denied_pix_transactions_list
     }
 
     return report
-
 
 def cardholder_report(user_id: int, alert_type: str, pep_data=None) -> dict:
     """Generates a report for a cardholder user."""
@@ -309,18 +288,23 @@ def cardholder_report(user_id: int, alert_type: str, pep_data=None) -> dict:
     query_cardholders = f"""
     SELECT * FROM metrics_amlft.cardholder_report WHERE user_id = {user_id} LIMIT 1
     """
+
     query_issuing_concentration = f"""
     SELECT * EXCEPT(user_id) FROM metrics_amlft.issuing_concentration WHERE user_id = {user_id}
     """
+
     query_pix_concentration = f"""
     SELECT * FROM metrics_amlft.pix_concentration WHERE user_id = {user_id}
     """
+
     query_offense_history = f"""
     SELECT * FROM `infinitepay-production.metrics_amlft.lavandowski_offense_analysis_data` WHERE user_id =  {user_id} ORDER BY id DESC
     """
+
     contacts_query = f"""
     SELECT * FROM `infinitepay-production.metrics_amlft.lavandowski_phonecast_data` WHERE user_id = {user_id}
     """
+
     devices_query = f"""
     SELECT * EXCEPT(user_id) FROM metrics_amlft.user_device WHERE user_id = {user_id}
     """
@@ -385,23 +369,23 @@ def cardholder_report(user_id: int, alert_type: str, pep_data=None) -> dict:
     # Fetch prison transactions
     prison_transactions_df = fetch_prison_transactions(user_id)
     prison_transactions_list = prison_transactions_df.to_dict(orient='records') if not prison_transactions_df.empty else []
+
+    # Convert decimals
     prison_transactions_list = convert_decimals(prison_transactions_list)
 
     # Fetch KYC sanctions history data
     sanctions_history_df = fetch_sanctions_history(user_id)
     sanctions_history_list = sanctions_history_df.to_dict(orient='records') if not sanctions_history_df.empty else []
+
+    # Convert decimals if necessary
     sanctions_history_list = convert_decimals(sanctions_history_list)
 
     # Fetch denied PIX transactions
     denied_pix_transactions_df = fetch_denied_pix_transactions(user_id)
     denied_pix_transactions_list = denied_pix_transactions_df.to_dict(orient='records') if not denied_pix_transactions_df.empty else []
-    denied_pix_transactions_list = convert_decimals(denied_pix_transactions_list)
 
-    # --- ADICIONADO: Fetch bets PIX transfers data ---
-    bets_pix_transfers_df = fetch_bets_pix_transfers(user_id)
-    bets_pix_transfers_list = bets_pix_transfers_df.to_dict(orient='records') if not bets_pix_transfers_df.empty else []
-    bets_pix_transfers_list = convert_decimals(bets_pix_transfers_list)
-    # --- End addition ---
+    # Convert decimals if necessary
+    denied_pix_transactions_list = convert_decimals(denied_pix_transactions_list)
 
     # Create report dictionary
     report = {
@@ -420,12 +404,10 @@ def cardholder_report(user_id: int, alert_type: str, pep_data=None) -> dict:
         "business_data": business_data_list,
         "prison_transactions": prison_transactions_list,
         "sanctions_history": sanctions_history_list,
-        "denied_pix_transactions": denied_pix_transactions_list,
-        "bets_pix_transfers": bets_pix_transfers_list
+        "denied_pix_transactions": denied_pix_transactions_list
     }
 
     return report
-
 
 def generate_prompt(report_data: dict, user_type: str, alert_type: str, betting_houses: pd.DataFrame = None, pep_data: pd.DataFrame = None, features: str = None) -> str:
     """Generates the prompt for the GPT model based on the report data."""
@@ -434,6 +416,7 @@ def generate_prompt(report_data: dict, user_type: str, alert_type: str, betting_
     # Serialize data to JSON strings
     user_info_key = f"{user_type.lower()}_info"
     user_info_json = json.dumps(report_data[user_info_key], ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
+
     issuing_concentration_json = json.dumps(report_data.get('issuing_concentration', []), ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
     pix_cash_in_json = json.dumps(report_data.get('pix_cash_in', []), ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
     pix_cash_out_json = json.dumps(report_data.get('pix_cash_out', []), ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
@@ -446,8 +429,8 @@ def generate_prompt(report_data: dict, user_type: str, alert_type: str, betting_
     prison_transactions_json = json.dumps(report_data.get('prison_transactions', []), ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
     sanctions_history_json = json.dumps(report_data.get('sanctions_history', []), ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
     denied_pix_transactions_json = json.dumps(report_data.get('denied_pix_transactions', []), ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
-    bets_pix_transfers_json = json.dumps(report_data.get('bets_pix_transfers', []), ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
-    
+    transaction_concentration_json = json.dumps(report_data.get('transaction_concentration', []), ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
+
     prompt = f"""
 Por favor, analise o caso abaixo.
 
@@ -461,9 +444,9 @@ Tipo de Alerta: {alert_type}
 Informação do {user_type}:
 {user_info_json}
 """
+
     # Include data specific to merchants
     if user_type == 'Merchant':
-        transaction_concentration_json = json.dumps(report_data.get('transaction_concentration', []), ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
         products_online_json = json.dumps(report_data.get('products_online', []), ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
         prompt += f"""
 Total de Transações PIX:
@@ -477,8 +460,21 @@ Transações em Horários Atípicos:
 Concentração de Transações por Portador de Cartão:
 {transaction_concentration_json}
 
+Análise Adicional para Concentração de Transações por Portador de Cartão:
+- Verifique se há transações com valores idênticos ou muito similares (usando card_holder_name, card_number e card_token_id) ocorrendo em intervalos curtos.
+- Utilize os campos total_approved_by_ch e count_approved_transactions para identificar portadores com volume elevado e detectar picos anormais.
+- Analise os valores de total_approved_by_ch_atypical_hours e Percentage_atypica para identificar transações em horários atípicos com padrões suspeitos.
+- Avalie o capture_method para verificar se determinados métodos de captura estão concentrados.
+- Verifique a concentração por emissor (issuer_id e issuer_name) e considere o risco associado ao country do emissor.
+
 Concentração de Issuing:
 {issuing_concentration_json}
+
+Análise Adicional para Concentração de Issuing:
+- Verifique se há repetição de merchant_name ou padrões de valores anômalos em total_amount.
+- Utilize os campos total_amount e percentage_of_total para identificar picos ou concentrações excessivas.
+- Compare os valores de total_amount com o percentage_of_total para detectar discrepâncias ou padrões incomuns.
+- Caso existam transações repetidas ou com valores atípicos, destaque essas ocorrências e discuta possíveis riscos associados.
 
 Transações Negadas:
 {denied_transactions_json}
@@ -515,11 +511,8 @@ Informações sobre processos judiciais:
 
 Histórico de Offenses:
 {offense_history_json}
-
-Transações de Apostas via PIX:
-{bets_pix_transfers_json}
 """
-    else:
+    else:  # For cardholders
         prompt += f"""
 Total de Transações PIX:
 - Cash In: R${report_data['total_cash_in_pix']:,.2f}
@@ -531,6 +524,11 @@ Transações em Horários Atípicos:
 
 Concentração de Issuing:
 {issuing_concentration_json}
+
+Análise Adicional para Concentração de Issuing:
+- Verifique se há padrões de valores anômalos em total_amount e se o percentage_of_total indica concentração elevada.
+- Identifique possíveis discrepâncias ou repetições em merchant_name e total_amount.
+- Discuta qualquer padrão incomum que possa sugerir risco ou concentração excessiva.
 
 Contatos (Atenção para contatos com status 'blocked'):
 {contacts_json}
@@ -554,234 +552,208 @@ Histórico Profissional:
 {business_data_json}
 
 Informações sobre processos judiciais:
-{lawsuit_data_json}
-
-Transações Confirmadamente Executadas Dentro do Presídio (Atenção especial às colunas status e transaction_type. Transações negadas ou com errors também devem ser consideradas):
 {prison_transactions_json}
 
 Histórico de Offenses:
 {offense_history_json}
-
-Transações de Apostas via PIX:
-{bets_pix_transfers_json}
 """
+
     # Additional instructions based on alert type
     if alert_type == 'betting_houses_alert [BR]' and betting_houses is not None:
         betting_houses_json = betting_houses.to_json(orient='records', force_ascii=False, indent=2)
         prompt += f"""
-           A primeira frase da sua análise deve ser: "Cliente está transacionando com casas de apostas."
+A primeira frase da sua análise deve ser: "Cliente está transacionando com casas de apostas."
 
+Atenção especial para transações com as casas de apostas abaixo:
+{betting_houses_json}
 
-           Atenção especial para transações com as casas de apostas abaixo:
-           {betting_houses_json}
+Para CADA transação em Cash In e Cash Out, você DEVE:
+1. Verificar se o nome da parte ou o CNPJ corresponde a alguma das casas de apostas listadas acima.
+2. Se houver correspondência, calcular:
+   a) A soma total de valores transacionados com essa casa de apostas específica.
+   b) A porcentagem que essa soma representa do valor TOTAL de Cash In ou Cash Out (conforme aplicável).
 
+Na sua análise, descreva:
+- A soma total de Cash In e Cash Out para cada casa de apostas correspondente.
+- A porcentagem que esses valores representam do total de Cash In e Cash Out.
+- Discuta quaisquer padrões ou anomalias observados nessas transações.
 
-           Para CADA transação em Cash In e Cash Out, você DEVE:
-           1. Verificar se o nome da parte ou o CNPJ corresponde a alguma das casas de apostas listadas acima.
-           2. Se houver correspondência, calcular:
-           a) A soma total de valores transacionados com essa casa de apostas específica.
-           b) A porcentagem que essa soma representa do valor TOTAL de Cash In ou Cash Out (conforme aplicável).
-
-
-           Na sua análise, descreva:
-           - A soma total de Cash In e Cash Out para cada casa de apostas correspondente.
-           - A porcentagem que esses valores representam do total de Cash In e Cash Out.
-           - Discuta quaisquer padrões ou anomalias observados nessas transações.
-
-
-           Lembre-se: Esta verificação deve ser feita para TODAS as transações, independentemente do tipo de alerta.
-           Se não houver correspondências com casas de apostas, informe explicitamente na sua análise.
-           """
+Lembre-se: Esta verificação deve ser feita para TODAS as transações, independentemente do tipo de alerta.
+"""
     elif alert_type == 'goverment_corporate_cards_alert [BR]':
         prompt += f"""
+A primeira frase da sua análise deve ser: "Cliente está transacionando com cartões corporativos governamentais."
 
+Atenção especial para transações com BINs de cartões de crédito que começam com os seguintes prefixos:
+- 409869
+- 467481
+- 498409
 
-           A primeira frase da sua análise deve ser: "Cliente está transacionando com cartões corporativos governamentais."
-          
-           Atenção especial para transações com BINs de cartões de crédito que começam com os seguintes prefixos:
-           - 409869
-           - 467481
-           - 498409
-          
-           Para CADA transação, você DEVE:
-           1. Verificar se o BIN (os primeiros 6 dígitos do número do cartão) corresponde a algum dos prefixos listados acima.
-           2. Se houver correspondência, calcular:
-           a) A soma total de valores transacionados com esses BINs específicos.
-           b) A porcentagem que essa soma representa do valor de TPV TOTAL (conforme aplicável).
-          
-           Na sua análise, descreva:
-           - A soma total de valores para cada prefixo BIN correspondente.
-           - A porcentagem que esses valores representam do total de Cash In e Cash Out.
-           - Discuta quaisquer padrões ou anomalias observados nessas transações.
-          
-           Lembre-se: Esta verificação deve ser feita para TODAS as transações de cartões de crédito relacionadas a este alerta.
-           Se não houver correspondências com os BINs listados, informe explicitamente na sua análise.
-           """
+Para CADA transação, você DEVE:
+1. Verificar se o BIN (os primeiros 6 dígitos do número do cartão) corresponde a algum dos prefixos listados acima.
+2. Se houver correspondência, calcular:
+   a) A soma total de valores transacionados com esses BINs específicos.
+   b) A porcentagem que essa soma representa do valor de TPV TOTAL (conforme aplicável).
+
+Na sua análise, descreva:
+- A soma total de valores para cada prefixo BIN correspondente.
+- A porcentagem que esses valores representam do total de Cash In e Cash Out.
+- Discuta quaisquer padrões ou anomalias observados nessas transações.
+
+Lembre-se: Esta verificação deve ser feita para TODAS as transações de cartões de crédito relacionadas a este alerta.
+Se não houver correspondências com os BINs listados, informe explicitamente na sua análise.
+"""
     elif alert_type == 'ch_alert [BR]':
         prompt += f"""
+A primeira frase da sua análise deve ser: "Cliente com possíveis anomalias em PIX."
 
+Atenção especial para Transações PIX:
 
-           A primeira frase da sua análise deve ser: "Cliente com possíveis anomalias em PIX."
-          
-           Atenção especial para Transações PIX:
-          
-           Para CADA transação em Cash In e Cash Out, você DEVE:
-           1. Analisar os valores de Cash In e Cash Out para identificar quaisquer anomalias ou padrões suspeitos.
-           2. Comparar os valores com transações típicas para determinar se há desvios significativos.
-          
-           Na sua análise, descreva:
-           - Quaisquer transações de Cash In ou Cash Out que apresentam valores anormais.
-           - Padrões ou tendências observadas nas transações PIX.
-           - Recomendação sobre a necessidade de investigação adicional com base nos achados.
-          
-           Lembre-se: Esta verificação deve ser feita para TODAS as transações PIX relacionadas a este alerta.
-           Se não houver anomalias detectadas, informe explicitamente na sua análise.
+Para CADA transação em Cash In e Cash Out, você DEVE:
+1. Analisar os valores de Cash In e Cash Out para identificar quaisquer anomalias ou padrões suspeitos.
+2. Comparar os valores com transações típicas para determinar se há desvios significativos.
 
+Na sua análise, descreva:
+- Quaisquer transações de Cash In ou Cash Out que apresentam valores anormais.
+- Padrões ou tendências observadas nas transações PIX.
+- Recomendação sobre a necessidade de investigação adicional com base nos achados.
 
-           Além disso, você deve verificar se o usuário pode ser estrangeiro, quando nome não soar Brasileiro, ou a data de criação do CPF for muito recente.
-           """
+Lembre-se: Esta verificação deve ser feita para TODAS as transações PIX relacionadas a este alerta.
+Se não houver anomalias detectadas, informe explicitamente na sua análise.
+
+Além disso, você deve verificar se o usuário pode ser estrangeiro, quando nome não soar Brasileiro, ou a data de criação do CPF for muito recente.
+"""
     elif alert_type == 'pix_merchant_alert [BR]':
         prompt += f"""
-          
-           A primeira frase da sua análise deve ser: "Cliente Merchant com possíveis anomalias em PIX Cash In."
-           Atenção especial para Transações PIX Cash-In e Cash-Out:
-          
-           Para CADA transação em Cash In e Cash Out, você DEVE:
-           1. Analisar os valores de Cash In para identificar quaisquer anomalias ou padrões suspeitos.
-           2. Revisar os valores de Cash Out para detectar valores atípicos ou incomuns.
-          
-           Na sua análise, descreva:
-           - Quaisquer transações de Cash In que apresentam valores anormais.
-           - Quaisquer transações de Cash Out que apresentam valores atípicos ou incomuns.
-           - Padrões ou tendências observadas nas transações PIX Cash-In e Cash-Out.
-           - Recomendação sobre a necessidade de investigação adicional com base nos achados.
-          
-           Lembre-se: Esta verificação deve ser feita para TODAS as transações PIX relacionadas a este alerta.
-           Se não houver anomalias ou valores atípicos detectados, informe explicitamente na sua análise.
-           """
+A primeira frase da sua análise deve ser: "Cliente Merchant com possíveis anomalias em PIX Cash In."
+Atenção especial para Transações PIX Cash-In e Cash-Out:
+
+Para CADA transação em Cash In e Cash Out, você DEVE:
+1. Analisar os valores de Cash In para identificar quaisquer anomalias ou padrões suspeitos.
+2. Revisar os valores de Cash Out para detectar valores atípicos ou incomuns.
+
+Na sua análise, descreva:
+- Quaisquer transações de Cash In que apresentam valores anormais.
+- Quaisquer transações de Cash Out que apresentam valores atípicos ou incomuns.
+- Padrões ou tendências observadas nas transações PIX Cash-In e Cash-Out.
+- Recomendação sobre a necessidade de investigação adicional com base nos achados.
+
+Lembre-se: Esta verificação deve ser feita para TODAS as transações PIX relacionadas a este alerta.
+Se não houver anomalias ou valores atípicos detectados, informe explicitamente na sua análise.
+"""
     elif alert_type == 'international_cards_alert [BR]':
         prompt += f"""
-          
-           A primeira frase da sua análise deve ser: "Cliente está transacionando com cartões internacionais."
-           Atenção especial para Transações com Issuer Não Brasileiro:
-          
-           Para CADA transação, você DEVE:
-           1. Verificar se o nome do emissor (issuer_name) da transação não é de uma instituição financeira brasileira.
-           2. Se o emissor não for do Brasil, calcular:
-           a) A soma total de valores transacionados com esse emissor específico.
-           b) A porcentagem que essa soma representa do TPV Total (conforme aplicável).
-          
-           Na sua análise, descreva:
-           - A soma total de valores para cada emissor não brasileiro correspondente.
-           - A porcentagem que esses valores representam do TPV total.
-           - Discuta quaisquer padrões ou anomalias observados nessas transações.
-          
-           Lembre-se: Esta verificação deve ser feita para TODAS as transações relacionadas a este alerta.
-           Se não houver correspondências com emissores não brasileiros, informe explicitamente na sua análise.
-           """
+A primeira frase da sua análise deve ser: "Cliente está transacionando com cartões internacionais."
+Atenção especial para Transações com Issuer Não Brasileiro:
+
+Para CADA transação, você DEVE:
+1. Verificar se o nome do emissor (issuer_name) da transação não é de uma instituição financeira brasileira.
+2. Se o emissor não for do Brasil, calcular:
+   a) A soma total de valores transacionados com esse emissor específico.
+   b) A porcentagem que essa soma representa do TPV Total (conforme aplicável).
+
+Na sua análise, descreva:
+- A soma total de valores para cada emissor não brasileiro correspondente.
+- A porcentagem que esses valores representam do TPV total.
+- Discuta quaisquer padrões ou anomalias observados nessas transações.
+
+Lembre-se: Esta verificação deve ser feita para TODAS as transações relacionadas a este alerta.
+Se não houver correspondências com emissores não brasileiros, informe explicitamente na sua análise.
+"""
     elif alert_type == 'bank_slips_alert [BR]':
         prompt += f"""
-          
-           A primeira frase da sua análise deve ser: "Cliente com possíveis anomalias envolvendo boletos bancários."
+A primeira frase da sua análise deve ser: "Cliente com possíveis anomalias envolvendo boletos bancários."
 
+Atenção especial para Transações com Método de Captura 'bank_slip':
 
-           Atenção especial para Transações com Método de Captura 'bank_slip':
-          
-           Para CADA transação, você DEVE:
-           1. Verificar se o método de captura (capture_method) da transação é 'bank_slip'.
-           2. Se for 'bank_slip', analisar:
-           a) A soma total de valores transacionados com este método.
-           b) A porcentagem que essa soma representa do valor do TPV TOTAL (conforme aplicável).
-          
-           Na sua análise, descreva:
-           - A soma total de valores para transações capturadas via 'bank_slip'.
-           - A porcentagem que esses valores representam do TPV total.
-           - Discuta quaisquer padrões ou anomalias observados nessas transações.
-          
-           Lembre-se: Esta verificação deve ser feita para TODAS as transações relacionadas a este alerta.
-           Se não houver transações com método de captura 'bank_slip', informe explicitamente na sua análise.
-           """
+Para CADA transação, você DEVE:
+1. Verificar se o método de captura (capture_method) da transação é 'bank_slip'.
+2. Se for 'bank_slip', analisar:
+   a) A soma total de valores transacionados com este método.
+   b) A porcentagem que essa soma representa do valor do TPV TOTAL (conforme aplicável).
+
+Na sua análise, descreva:
+- A soma total de valores para transações capturadas via 'bank_slip'.
+- A porcentagem que esses valores representam do TPV total.
+- Discuta quaisquer padrões ou anomalias observados nessas transações.
+
+Lembre-se: Esta verificação deve ser feita para TODAS as transações relacionadas a este alerta.
+Se não houver transações com método de captura 'bank_slip', informe explicitamente na sua análise.
+"""
     elif alert_type == 'gafi_alert [US]':
         prompt += f"""
-          
-           A primeira frase da sua análise deve ser: "Cliente está transacionando com países proibidos do GAFI."
+A primeira frase da sua análise deve ser: "Cliente está transacionando com países proibidos do GAFI."
 
+Atenção especial para Transações cujo issuer seja emitido em algum dos países abaixo:
 
-           Atenção especial para Transações cujo issuer seja emitido em algum dos países abaixo:
+'Bulgaria', 'Burkina Faso', 'Cameroon', 'Croatia', 'Haiti', 'Jamaica', 'Kenya', 'Mali', 'Mozambique',
+'Myanmar', 'Namibia', 'Nigeria', 'Philippines', 'Senegal', 'South Africa', 'Tanzania', 'Vietnam', 'Congo, Dem. Rep.',
+'Syrian Arab Republic', 'Turkey', 'Yemen, Rep.', 'Yemen Democratic', 'Iran, Islamic Rep.', 'Korea, Dem. Rep.' ,'Venezuela'
 
+Para CADA transação, você DEVE:
+1. Verificar se o nome do emissor (issuer_name) da transação não é de alguma instituição financeira com oriens em algum dos países acima.
+2. Se positivo, calcular:
+   a) A soma total de valores transacionados com esse emissor específico.
+   b) A porcentagem que essa soma representa do TPV Total (conforme aplicável).
+   c) Nomear o país de origem.
 
-           'Bulgaria', 'Burkina Faso', 'Cameroon', 'Croatia', 'Haiti', 'Jamaica', 'Kenya', 'Mali', 'Mozambique',
-           'Myanmar', 'Namibia', 'Nigeria', 'Philippines', 'Senegal', 'South Africa', 'Tanzania', 'Vietnam', 'Congo, Dem. Rep.',
-           'Syrian Arab Republic', 'Turkey', 'Yemen, Rep.', 'Yemen Democratic', 'Iran, Islamic Rep.', 'Korea, Dem. Rep.' ,'Venezuela'
-          
-           Para CADA transação, você DEVE:
-           1. Verificar se o nome do emissor (issuer_name) da transação não é de alguma instituição financeira com oriens em algum dos países acima.
-           2. Se positivo, calcular:
-           a) A soma total de valores transacionados com esse emissor específico.
-           b) A porcentagem que essa soma representa do TPV Total (conforme aplicável).
-           c) Nomear o país de origem.
-          
-           Na sua análise, descreva:
-           - A soma total de valores para cada emissor com origens nos países acima, restritos pelo GAFI.
-           - A porcentagem que esses valores representam do TPV total.
-           - Discuta quaisquer padrões ou anomalias observados nessas transações.
-          
-           Lembre-se: Esta verificação deve ser feita para TODAS as transações relacionadas a este alerta.
-           Se não houver correspondências com emissores não brasileiros, informe explicitamente na sua análise.
-           """
+Na sua análise, descreva:
+- A soma total de valores para cada emissor com origens nos países acima, restritos pelo GAFI.
+- A porcentagem que esses valores representam do TPV total.
+- Discuta quaisquer padrões ou anomalias observados nessas transações.
+
+Lembre-se: Esta verificação deve ser feita para TODAS as transações relacionadas a este alerta.
+Se não houver correspondências com emissores não brasileiros, informe explicitamente na sua análise.
+"""
     elif alert_type == 'pep_pix_alert [BR]' and pep_data is not None:
         pep_data_json = pep_data.to_json(orient='records', force_ascii=False, indent=2)
         prompt += f"""
-           A primeira frase da sua análise deve ser: "Cliente transacionando com Pessoas Politicamente Expostas (PEP)."
+A primeira frase da sua análise deve ser: "Cliente transacionando com Pessoas Politicamente Expostas (PEP)."
 
+Atenção especial para as transações identificadas abaixo:
+{pep_data_json}
 
-           Atenção especial para as transações identificadas abaixo:
-           {pep_data_json}
-          
-           Você DEVE:
-           1. Para cada PEP na lista, informar:
-           - Nome completo do PEP (pep_name)
-           - Documento do PEP (pep_document_number).
-           - Cargo do PEP (job_description).
-           - Órgão de trabalho (agencies).
-           - Soma total dos valores transacionados com cada PEP (DEBIT + CREDIT).
-           - A porcentagem que essa soma representa do total de Cash In e/ou Cash Out transacionado com outros indivíduos.
-           3. Analisar se os valores e frequências das transações com PEP são atípicos ou suspeitos.
+Você DEVE:
+1. Para cada PEP na lista, informar:
+   - Nome completo do PEP (pep_name)
+   - Documento do PEP (pep_document_number).
+   - Cargo do PEP (job_description).
+   - Órgão de trabalho (agencies).
+   - Soma total dos valores transacionados com cada PEP (DEBIT + CREDIT).
+   - A porcentagem que essa soma representa do total de Cash In e/ou Cash Out transacionado com outros indivíduos.
+2. Analisar se os valores e frequências das transações com PEP são atípicos ou suspeitos.
 
+Na sua análise, descreva:
+- Detalhes das transações com cada PEP identificado.
+- Qualquer padrão ou anomalia observada nessas transações.
+- Recomendações sobre a necessidade de investigação adicional com base nos achados.
 
-           Na sua análise, descreva:
-           - Detalhes das transações com cada PEP identificado.
-           - Qualquer padrão ou anomalia observada nessas transações.
-           - Recomendações sobre a necessidade de investigação adicional com base nos achados.
-
-
-           Lembre-se: Esta verificação deve ser feita para TODAS as transações de Cash In e Cash Out relacionadas a este alerta.
-           """
+Lembre-se: Esta verificação deve ser feita para TODAS as transações de Cash In e Cash Out relacionadas a este alerta.
+"""
     elif alert_type == 'AI Alert' and features:
         prompt += f"""
-       Atenção especial às anomalias identificadas pelo modelo de AI:
-       {features}
+Atenção especial às anomalias identificadas pelo modelo de AI:
+{features}
 
-
-       Por favor, descreva os padrões ou comportamentos anômalos identificados com base nas características acima.
-       Você também deve analisar os demais dados disponíveis, como transações, contatos, dispositivos, issuing, produtos, para confirmar ou ajustar a suspeita de fraude.
-       """
+Por favor, descreva os padrões ou comportamentos anômalos identificados com base nas características acima.
+Você também deve analisar os demais dados disponíveis, como transações, contatos, dispositivos, issuing, produtos, para confirmar ou ajustar a suspeita de fraude.
+"""
     elif alert_type == 'Issuing Transactions Alert':
         prompt += f"""
-           A primeira frase da sua análise deve ser: "Cliente está transacionando altos valores via Issuing."
-          
-           Atenção especial para a tabela de Issuing e as seguintes informações:
-           - Coluna total_amount
-           - mcc e mcc_description
-           - card_acceptor_country_code
-          
-           Na sua análise, descreva:
-           - merchant_name com total_amount e percentage_of_total elevados.
-           - Se mcc e mcc_description fazem parte de negócios de alto risco.
-           - Se o país em card_acceptor_country_code é considerado um país de alto risco.
-           """
-    return prompt
+A primeira frase da sua análise deve ser: "Cliente está transacionando altos valores via Issuing."
 
+Atenção especial para a tabela de Issuing e as seguintes informações:
+- Coluna total_amount
+- mcc e mcc_description
+- card_acceptor_country_code
+
+Na sua análise, descreva:
+- merchant_name com total_amount e percentage_of_total elevados.
+- Se mcc e mcc_description fazem parte de negócios de alto risco.
+- Se o país em card_acceptor_country_code é considerado um país de alto risco.
+"""
+
+    return prompt
 
 def get_gpt_analysis(prompt: str) -> str:
     """Gets the GPT analysis for the given prompt.
